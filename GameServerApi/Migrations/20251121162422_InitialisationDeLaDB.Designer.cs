@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GameServerApi.Migrations
 {
     [DbContext(typeof(UserContext))]
-    [Migration("20251121135843_InitialisationDeLaDB")]
+    [Migration("20251121162422_InitialisationDeLaDB")]
     partial class InitialisationDeLaDB
     {
         /// <inheritdoc />
@@ -18,6 +18,26 @@ namespace GameServerApi.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.10");
+
+            modelBuilder.Entity("GameServerApi.InventoryEntry", b =>
+                {
+                    b.Property<int>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("itemId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("quantity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("userId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("id");
+
+                    b.ToTable("Inventories");
+                });
 
             modelBuilder.Entity("GameServerApi.Progression", b =>
                 {
@@ -32,6 +52,9 @@ namespace GameServerApi.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("multiplier")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("totalClickValue")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("userId")

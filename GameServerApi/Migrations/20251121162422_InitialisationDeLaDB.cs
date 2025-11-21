@@ -11,6 +11,21 @@ namespace GameServerApi.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
+                name: "Inventories",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    userId = table.Column<int>(type: "INTEGER", nullable: false),
+                    itemId = table.Column<int>(type: "INTEGER", nullable: false),
+                    quantity = table.Column<int>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Inventories", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Progressions",
                 columns: table => new
                 {
@@ -19,6 +34,7 @@ namespace GameServerApi.Migrations
                     userId = table.Column<int>(type: "INTEGER", nullable: false),
                     count = table.Column<int>(type: "INTEGER", nullable: false),
                     multiplier = table.Column<int>(type: "INTEGER", nullable: false),
+                    totalClickValue = table.Column<int>(type: "INTEGER", nullable: false),
                     bestScore = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
@@ -45,6 +61,9 @@ namespace GameServerApi.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "Inventories");
+
             migrationBuilder.DropTable(
                 name: "Progressions");
 
