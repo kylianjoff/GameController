@@ -7,4 +7,6 @@ public class Progression
     public int count { get; set; }
     public int multiplier { get; set; }
     public int bestScore { get; set; }
+
+    public Progression() {}
 }
