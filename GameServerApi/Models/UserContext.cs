@@ -15,5 +15,5 @@ public class UserContext : DbContext
 
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<Progression> Progressions { get; set; } = null!;
-    public DbSet<Shop> Shop { get; set; } = null!;
+    public DbSet<InventoryEntry> Inventories { get; set; } = null!;
 }
