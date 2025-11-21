@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Identity;
 
 namespace GameServerApi.controller
 {
-    [Route("api/Game/[controller]")]
+    [Route("api/[controller]")]
     [ApiController]
     public class GameController : ControllerBase
     {
