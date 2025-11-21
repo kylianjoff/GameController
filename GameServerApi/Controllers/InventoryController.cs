@@ -39,5 +39,32 @@ namespace GameServerApi.controller
             }
             return Ok(items);
         }
+
+        [HttpGet("Inventory/userInventory/{userId}")]
+        public async Task<ActionResult<InventoryEntry>> UserInventory(int userId)
+        {
+            var items = _context.Inventories.Where(i => i.userId == userId).ToListAsync();
+            return Ok(items);
+        }
+
+        [HttpPost("Inventory/Buy/{userId}/{itemId}")]
+        public async Task<ActionResult<InventoryEntry>> buy(int userId, int itemId)
+        {
+            var user = _context.Users.Where(u => u.id == userId);
+            if(user == null)
+            {
+                return BadRequest(new ErrorResponse("User not found", "USER_NOT_FOUND"));
+            }
+            var maxQuantity = _context.Items.Where(i => i.id == itemId).Select(i => i.maxQuantity);
+            var quantity = _context.Inventories.Where(i => i.userId == userId).Select(i => i.quantity);
+            if(quantity != maxQuantity)
+            {
+                return Ok(); // A finir
+            }
+            else
+            {
+                return BadRequest(new ErrorResponse("Inventory is full", "INVENTORY_FULL"));
+            }
+        }
     }
 }
