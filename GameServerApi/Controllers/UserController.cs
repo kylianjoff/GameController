@@ -33,9 +33,21 @@ namespace GameServerApi.Controllers
         }
 
         [HttpGet("AllAdmin")]
-        public async Task<ActionResult<IEnumerable<User>>> GetAllAdmins()
+        public async Task<ActionResult<IEnumerable<UserPublic>>> GetAllAdmins()
         {
-            return await _context.Users.Where(u => u.role == Role.Admin).ToListAsync();
+            var admins = await _context.Users
+                .Where(u => u.role == Role.Admin)
+                .Select(u => new UserPublic
+                {
+                    id = u.id,
+                    username = u.pseudo,
+                    role = u.role
+                }).ToListAsync();
+            if (admins == null || admins.Count == 0)
+            {
+                return NotFound(new ErrorResponse("User not found", "User_NOT_FOUND"));
+            }
+            return Ok(admins);
         }
 
         [HttpGet("Search/{name}")]
@@ -93,22 +105,19 @@ namespace GameServerApi.Controllers
         }
 
         [HttpPost("Login")]
-        public async Task<ActionResult<User>> Login(User loginData)
+        public async Task<ActionResult<UserPublic>> Login(User loginData)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.pseudo == loginData.pseudo);
-            if (user == null) return Unauthorized("Pseudo ou mot de passe incorrect.");
+            if (user == null) 
+                return Unauthorized(new ErrorResponse("Pseudo ou mot de passe incorrect.", "AUTH_FAILED"));
 
             var hasher = new PasswordHasher<User>();
             var result = hasher.VerifyHashedPassword(user, user.password, loginData.password);
 
-            if(result == PasswordVerificationResult.Failed) return Unauthorized("Pseudo ou mot de passe incorrect.");
+            if (result == PasswordVerificationResult.Failed) 
+                return Unauthorized(new ErrorResponse("Pseudo ou mot de passe incorrect.", "AUTH_FAILED"));
 
-            return Ok(new
-            {
-                user.id,
-                user.pseudo,
-                user.role
-            });
+            return Ok(new UserPublic(user.id, user.pseudo, user.role));
         }
 
         [HttpPut("{id}")]
