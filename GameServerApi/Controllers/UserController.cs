@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GameServerApi.Models;
@@ -19,15 +18,13 @@ namespace GameServerApi.Controllers
         [HttpGet("All")]
         public async Task<ActionResult<IEnumerable<UserPublic>>> GetAllUsers()
         {
-            var users = await _context.Users.Select(u => new UserPublic
+            var users = await _context.Users
+                .Select(u => new UserPublic(u.id, u.username, u.role))
+                .ToListAsync();
+
+            if (users.Count == 0)
             {
-                id = u.id,
-                username = u.username,
-                role = u.role
-            }).ToListAsync();
-            if(users == null || users.Count == 0)
-            {
-                return NotFound(new ErrorResponse("User not found", "USER_NOT_FOUND"));
+                return NotFound(new ErrorResponse("No users found", "NO_USERS"));
             }
             return Ok(users);
         }
@@ -37,57 +34,55 @@ namespace GameServerApi.Controllers
         {
             var admins = await _context.Users
                 .Where(u => u.role == Role.Admin)
-                .Select(u => new UserPublic
-                {
-                    id = u.id,
-                    username = u.username,
-                    role = u.role
-                }).ToListAsync();
-            if (admins == null || admins.Count == 0)
+                .Select(u => new UserPublic(u.id, u.username, u.role))
+                .ToListAsync();
+
+            if (admins.Count == 0)
             {
-                return NotFound(new ErrorResponse("User not found", "User_NOT_FOUND"));
+                return NotFound(new ErrorResponse("No admins found", "NO_ADMINS"));
             }
             return Ok(admins);
         }
 
         [HttpGet("Search/{name}")]
-        public async Task<ActionResult<IEnumerable<User>>> SearchUsers(string name)
+        public async Task<ActionResult<IEnumerable<UserPublic>>> SearchUsers(string name)
         {
-            return await _context.Users.Where(u => u.username != null && u.username.Contains(name)).ToListAsync();
+            var users = await _context.Users
+                .Where(u => u.username != null && u.username.Contains(name))
+                .Select(u => new UserPublic(u.id, u.username, u.role))
+                .ToListAsync();
+
+            if (users.Count == 0)
+            {
+                return NotFound(new ErrorResponse("No users found", "NO_USERS"));
+            }
+            return Ok(users);
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<User>> GetUser(int id)
+        public async Task<ActionResult<UserPublic>> GetUser(int id)
         {
             var user = await _context.Users.FindAsync(id);
             if (user == null)
             {
-                return NotFound();
+                return NotFound(new ErrorResponse("User not found", "USER_NOT_FOUND"));
             }
-            return Ok(new
-            {
-                user.id,
-                user.username,
-                user.role
-            });
-        }
-
-        public class UserCreation
-        {
-            public int id { get; set; }
-            public string? username { get; set; }
-            public string? password { get; set; }
-            public Role role { get; set; }
+            return Ok(new UserPublic(user.id, user.username, user.role));
         }
 
         [HttpPost("Register")]
-        public async Task<ActionResult<User>> Register(User userCreation)
+        public async Task<ActionResult<UserPublic>> Register(UserPass userCreation)
         {
+            var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.username == userCreation.username);
+            if (existingUser != null)
+            {
+                return BadRequest(new ErrorResponse("Username already exists", "USERNAME_EXISTS"));
+            }
 
             var newUser = new User
             {
                 username = userCreation.username,
-                role = userCreation.role
+                role = Role.User
             };
 
             var hasher = new PasswordHasher<User>();
@@ -96,42 +91,42 @@ namespace GameServerApi.Controllers
             _context.Users.Add(newUser);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetUser), new { id = newUser.id }, new
-            {
-                newUser.id,
-                newUser.username,
-                newUser.role
-            });
+            return CreatedAtAction(nameof(GetUser), new { id = newUser.id }, new UserPublic(newUser.id, newUser.username, newUser.role));
         }
 
         [HttpPost("Login")]
-        public async Task<ActionResult<UserPublic>> Login(User loginData)
+        public async Task<ActionResult<UserPublic>> Login(UserPass loginData)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.username == loginData.username);
-            if (user == null) 
-                return Unauthorized(new ErrorResponse("username ou mot de passe incorrect.", "AUTH_FAILED"));
+            if (user == null)
+                return Unauthorized(new ErrorResponse("Username ou mot de passe incorrect", "AUTH_FAILED"));
 
             var hasher = new PasswordHasher<User>();
             var result = hasher.VerifyHashedPassword(user, user.password, loginData.password);
 
-            if (result == PasswordVerificationResult.Failed) 
-                return Unauthorized(new ErrorResponse("username ou mot de passe incorrect.", "AUTH_FAILED"));
+            if (result == PasswordVerificationResult.Failed)
+                return Unauthorized(new ErrorResponse("Username ou mot de passe incorrect", "AUTH_FAILED"));
 
             return Ok(new UserPublic(user.id, user.username, user.role));
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutUser(User userUpdate)
+        public async Task<ActionResult<UserPublic>> PutUser(int id, UserUpdate userUpdate)
         {
-            User user = await _context.Users.FindAsync(userUpdate.id);
+            var user = await _context.Users.FindAsync(id);
             if (user == null)
             {
-                return NotFound();
+                return NotFound(new ErrorResponse("User not found", "USER_NOT_FOUND"));
             }
+
             user.username = userUpdate.username;
-            user.password = userUpdate.password;
             user.role = userUpdate.role;
-            _context.Entry(user).State = EntityState.Modified;
+
+            if (!string.IsNullOrEmpty(userUpdate.password))
+            {
+                var hasher = new PasswordHasher<User>();
+                user.password = hasher.HashPassword(user, userUpdate.password);
+            }
 
             try
             {
@@ -139,18 +134,19 @@ namespace GameServerApi.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                return StatusCode(500, "Erreur de concurrence");
+                return StatusCode(500, new ErrorResponse("Erreur de concurrence", "CONCURRENCY_ERROR"));
             }
-            return Ok(user);
+
+            return Ok(new UserPublic(user.id, user.username, user.role));
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
-            User user = await _context.Users.FindAsync(id);
+            var user = await _context.Users.FindAsync(id);
             if (user == null)
             {
-                return NotFound();
+                return NotFound(new ErrorResponse("User not found", "USER_NOT_FOUND"));
             }
             _context.Users.Remove(user);
             await _context.SaveChangesAsync();
@@ -161,6 +157,10 @@ namespace GameServerApi.Controllers
         public async Task<IActionResult> DeleteAllUsers()
         {
             var users = await _context.Users.ToListAsync();
+            if (users.Count == 0)
+            {
+                return NotFound(new ErrorResponse("No users to delete", "NO_USERS"));
+            }
             _context.Users.RemoveRange(users);
             await _context.SaveChangesAsync();
             return NoContent();
