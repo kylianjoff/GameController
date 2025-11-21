@@ -17,9 +17,19 @@ namespace GameServerApi.Controllers
         }
 
         [HttpGet("All")]
-        public async Task<ActionResult<IEnumerable<User>>> GetAllUsers()
+        public async Task<ActionResult<IEnumerable<UserPublic>>> GetAllUsers()
         {
-            return await _context.Users.ToArrayAsync();
+            var users = await _context.Users.Select(u => new UserPublic
+            {
+                id = u.id,
+                username = u.pseudo,
+                role = u.role
+            }).ToListAsync();
+            if(users == null || users.Count == 0)
+            {
+                return NotFound(new ErrorResponse("User not found", "USER_NOT_FOUND"));
+            }
+            return Ok(users);
         }
 
         [HttpGet("AllAdmin")]

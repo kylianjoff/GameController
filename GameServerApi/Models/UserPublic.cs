@@ -1,6 +1,6 @@
 namespace GameServerApi;
 
-public class UserPublic
+public record UserPublic
 {
     public int id { get; set; }
     public string? username { get; set; }
