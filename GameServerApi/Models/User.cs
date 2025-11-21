@@ -2,8 +2,8 @@ namespace GameServerApi;
 
 public enum Role
 {
-    User,
-    Admin
+    Admin,
+    User
 }
 public class User
 {
