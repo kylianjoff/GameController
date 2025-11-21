@@ -22,7 +22,7 @@ namespace GameServerApi.Controllers
             var users = await _context.Users.Select(u => new UserPublic
             {
                 id = u.id,
-                username = u.pseudo,
+                username = u.username,
                 role = u.role
             }).ToListAsync();
             if(users == null || users.Count == 0)
@@ -40,7 +40,7 @@ namespace GameServerApi.Controllers
                 .Select(u => new UserPublic
                 {
                     id = u.id,
-                    username = u.pseudo,
+                    username = u.username,
                     role = u.role
                 }).ToListAsync();
             if (admins == null || admins.Count == 0)
@@ -53,7 +53,7 @@ namespace GameServerApi.Controllers
         [HttpGet("Search/{name}")]
         public async Task<ActionResult<IEnumerable<User>>> SearchUsers(string name)
         {
-            return await _context.Users.Where(u => u.pseudo != null && u.pseudo.Contains(name)).ToListAsync();
+            return await _context.Users.Where(u => u.username != null && u.username.Contains(name)).ToListAsync();
         }
 
         [HttpGet("{id}")]
@@ -67,7 +67,7 @@ namespace GameServerApi.Controllers
             return Ok(new
             {
                 user.id,
-                user.pseudo,
+                user.username,
                 user.role
             });
         }
@@ -75,7 +75,7 @@ namespace GameServerApi.Controllers
         public class UserCreation
         {
             public int id { get; set; }
-            public string? pseudo { get; set; }
+            public string? username { get; set; }
             public string? password { get; set; }
             public Role role { get; set; }
         }
@@ -86,7 +86,7 @@ namespace GameServerApi.Controllers
 
             var newUser = new User
             {
-                pseudo = userCreation.pseudo,
+                username = userCreation.username,
                 role = userCreation.role
             };
 
@@ -99,7 +99,7 @@ namespace GameServerApi.Controllers
             return CreatedAtAction(nameof(GetUser), new { id = newUser.id }, new
             {
                 newUser.id,
-                newUser.pseudo,
+                newUser.username,
                 newUser.role
             });
         }
@@ -107,17 +107,17 @@ namespace GameServerApi.Controllers
         [HttpPost("Login")]
         public async Task<ActionResult<UserPublic>> Login(User loginData)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.pseudo == loginData.pseudo);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.username == loginData.username);
             if (user == null) 
-                return Unauthorized(new ErrorResponse("Pseudo ou mot de passe incorrect.", "AUTH_FAILED"));
+                return Unauthorized(new ErrorResponse("username ou mot de passe incorrect.", "AUTH_FAILED"));
 
             var hasher = new PasswordHasher<User>();
             var result = hasher.VerifyHashedPassword(user, user.password, loginData.password);
 
             if (result == PasswordVerificationResult.Failed) 
-                return Unauthorized(new ErrorResponse("Pseudo ou mot de passe incorrect.", "AUTH_FAILED"));
+                return Unauthorized(new ErrorResponse("username ou mot de passe incorrect.", "AUTH_FAILED"));
 
-            return Ok(new UserPublic(user.id, user.pseudo, user.role));
+            return Ok(new UserPublic(user.id, user.username, user.role));
         }
 
         [HttpPut("{id}")]
@@ -128,7 +128,7 @@ namespace GameServerApi.Controllers
             {
                 return NotFound();
             }
-            user.pseudo = userUpdate.pseudo;
+            user.username = userUpdate.username;
             user.password = userUpdate.password;
             user.role = userUpdate.role;
             _context.Entry(user).State = EntityState.Modified;
