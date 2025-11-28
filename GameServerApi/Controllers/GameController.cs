@@ -41,6 +41,7 @@ namespace GameServerApi.Controllers
             {
                 return NotFound(new ErrorResponse("User does not have progression", "NO_PROGRESSION"));
             }
+            int effectiveMultiplier = progression.multiplier + progression.totalClickValue;
             progression.count += progression.multiplier;
             if (progression.count > progression.bestScore)
             {
@@ -51,7 +52,7 @@ namespace GameServerApi.Controllers
             return Ok(new 
             {
                 count = progression.count,
-                multiplier = progression.multiplier
+                multiplier = effectiveMultiplier
             });
         }
 

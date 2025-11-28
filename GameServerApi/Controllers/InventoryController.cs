@@ -37,7 +37,7 @@ namespace GameServerApi.Controllers
                 
                 if (itemsFromJson == null || itemsFromJson.Count == 0)
                 {
-                    return BadRequest(new ErrorResponse("No items found in JSON", "SEED_FAILED"));
+                    return BadRequest(new ErrorResponse("Failed to seed inventory", "SEED_FAILED"));
                 }
 
                 // 4. Insérer les items en base
@@ -66,29 +66,26 @@ namespace GameServerApi.Controllers
         [HttpGet("UserInventory/{userId}")]
         public async Task<ActionResult<IEnumerable<InventoryEntry>>> UserInventory(int userId)
         {
-            var items = await _context.Inventories
-                .Where(i => i.userId == userId)
-                .ToListAsync();
+            var items = await _context.Inventories.Where(i => i.userId == userId).ToListAsync();
             return Ok(items);
         }
 
         [HttpPost("Buy/{userId}/{itemId}")]
-        public async Task<ActionResult<InventoryEntry>> Buy(int userId, int itemId)
+        public async Task<ActionResult<IEnumerable<InventoryEntry>>> Buy(int userId, int itemId)
         {
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
             {
-                return NotFound(new ErrorResponse("User not found", "USER_NOT_FOUND"));
+                return BadRequest(new ErrorResponse("User not found", "USER_NOT_FOUND"));
             }
 
             var item = await _context.Items.FindAsync(itemId);
             if (item == null)
             {
-                return NotFound(new ErrorResponse("Item not found", "ITEM_NOT_FOUND"));
+                return BadRequest(new ErrorResponse("Item not found", "ITEM_NOT_FOUND"));
             }
 
-            var progression = await _context.Progressions
-                .FirstOrDefaultAsync(p => p.userId == userId);
+            var progression = await _context.Progressions.FirstOrDefaultAsync(p => p.userId == userId);
             if (progression == null)
             {
                 return BadRequest(new ErrorResponse("User does not have a progression", "NO_PROGRESSION"));
@@ -99,14 +96,13 @@ namespace GameServerApi.Controllers
                 return BadRequest(new ErrorResponse("Not enough money to buy the item", "NOT_ENOUGH_MONEY"));
             }
 
-            var inventoryEntry = await _context.Inventories
-                .FirstOrDefaultAsync(i => i.userId == userId && i.itemId == itemId);
+            var inventoryEntry = await _context.Inventories.FirstOrDefaultAsync(i => i.userId == userId && i.itemId == itemId);
 
             if (inventoryEntry != null)
             {
                 if (inventoryEntry.quantity >= item.maxQuantity)
                 {
-                    return BadRequest(new ErrorResponse("Max quantity reached for this item", "MAX_QUANTITY_REACHED"));
+                    return BadRequest(new ErrorResponse("Inventory is full", "INVENTORY_FULL"));
                 }
                 inventoryEntry.quantity++;
             }
@@ -121,10 +117,16 @@ namespace GameServerApi.Controllers
                 _context.Inventories.Add(inventoryEntry);
             }
 
+            // Déduire le prix et augmenter totalClickValue
             progression.count -= item.price;
+            progression.totalClickValue += item.clickValue;
+
             await _context.SaveChangesAsync();
 
-            return Ok(inventoryEntry);
+            // Retourner tout l'inventaire de l'utilisateur
+            var userInventory = await _context.Inventories.Where(i => i.userId == userId).ToListAsync();
+
+            return Ok(userInventory);
         }
     }
 }
