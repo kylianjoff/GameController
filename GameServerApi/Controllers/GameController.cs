@@ -106,13 +106,16 @@ namespace GameServerApi.Controllers
         [HttpGet("ResetCost/{userId}")]
         public async Task<ActionResult<int>> ResetCost(int userId)
         {
-            var progression = await _context.Progressions.FirstOrDefaultAsync(p => p.userId == userId);
-            if (progression == null)
+            var multiplier = await _context.Progressions.Where(u => u.userId == userId).Select(u => u.multiplier).FirstOrDefaultAsync();
+            if(multiplier == 0)
             {
-                return NotFound(new ErrorResponse("User does not have a progression", "NO_PROGRESSION"));
+                return NotFound(new ErrorResponse("User does not have a progresson", "NO_PROGRESSION"));
             }
-            var resetCost = CalculateResetCost(progression.multiplier);
-            return Ok(resetCost);
+            var cost = CalculateResetCost(multiplier);
+            return Ok(new
+            {
+                cost
+            });
         }
 
         [HttpGet("BestScore")]
@@ -120,20 +123,18 @@ namespace GameServerApi.Controllers
         {
             var progressions = await _context.Progressions
                 .OrderByDescending(p => p.bestScore)
-                .ToListAsync();
+                .FirstOrDefaultAsync();
             
-            if (progressions.Count == 0)
+            if (progressions == null)
             {
                 return NotFound(new ErrorResponse("No progressions found", "NO_PROGRESSIONS"));
             }
             
-            var result = progressions.Select(p => new
+            return Ok(new
             {
-                userId = p.userId,
-                bestScore = p.bestScore
+                progressions.userId,
+                progressions.bestScore
             });
-            
-            return Ok(result);
         }
     }
 }
