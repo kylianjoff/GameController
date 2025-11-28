@@ -1,10 +1,8 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GameServerApi.Models;
-using Microsoft.AspNetCore.Identity;
 
-namespace GameServerApi.controller
+namespace GameServerApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
@@ -28,42 +26,47 @@ namespace GameServerApi.controller
         public async Task<ActionResult<Progression>> Progression(int userId)
         {
             var progression = await _context.Progressions.FirstOrDefaultAsync(p => p.userId == userId);
-            if(progression == null)
+            if (progression == null)
             {
-                return BadRequest(new ErrorResponse("User does not have a progression", "NO_PROGRESSION"));
+                return NotFound(new ErrorResponse("User does not have a progression", "NO_PROGRESSION"));
             }
             return Ok(progression);
         }
 
         [HttpGet("Click/{userId}")]
-        public async Task<ActionResult<Progression>> Click(int userId)
+        public async Task<ActionResult> Click(int userId)
         {
             var progression = await _context.Progressions.FirstOrDefaultAsync(p => p.userId == userId);
-            if(progression == null)
+            if (progression == null)
             {
-                return BadRequest(new ErrorResponse("User does not have progression", "NO_PROGRESSION"));
+                return NotFound(new ErrorResponse("User does not have progression", "NO_PROGRESSION"));
             }
             progression.count += progression.multiplier;
-            if(progression.count > progression.bestScore)
+            if (progression.count > progression.bestScore)
             {
                 progression.bestScore = progression.count;
             }
             await _context.SaveChangesAsync();
-            return Ok(progression);
+            
+            return Ok(new 
+            {
+                count = progression.count,
+                multiplier = progression.multiplier
+            });
         }
 
         [HttpGet("Initialize/{userId}")]
         public async Task<ActionResult<Progression>> InitializeProgression(int userId)
         {
             var user = await _context.Users.FindAsync(userId);
-            if(user == null)
+            if (user == null)
             {
                 return NotFound(new ErrorResponse("User not found", "USER_NOT_FOUND"));
             }
             var progression = await _context.Progressions.FirstOrDefaultAsync(p => p.userId == userId);
-            if(progression != null)
+            if (progression != null)
             {
-                return BadRequest(new ErrorResponse("User already hass a progression", "PROGRESSION_EXISTS"));
+                return BadRequest(new ErrorResponse("User already has a progression", "PROGRESSION_EXISTS"));
             }
             var newProgression = new Progression
             {
@@ -74,23 +77,23 @@ namespace GameServerApi.controller
             };
             _context.Progressions.Add(newProgression);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(Progression), new { userId = userId}, newProgression);
+            return CreatedAtAction(nameof(Progression), new { userId = userId }, newProgression);
         }
 
         [HttpPost("Reset/{userId}")]
         public async Task<ActionResult<Progression>> Reset(int userId)
         {
             var progression = await _context.Progressions.FirstOrDefaultAsync(p => p.userId == userId);
-            if(progression == null)
+            if (progression == null)
             {
-                return BadRequest(new ErrorResponse("User does not have a progression", "NO_PROGRESSION"));
+                return NotFound(new ErrorResponse("User does not have a progression", "NO_PROGRESSION"));
             }
             int resetCost = CalculateResetCost(progression.multiplier);
-            if(progression.count < resetCost)
+            if (progression.count < resetCost)
             {
-                return BadRequest(new ErrorResponse("Not enought point", "INSUFFICIENT_POINTS"));
+                return BadRequest(new ErrorResponse("Not enough points", "INSUFFICIENT_POINTS"));
             }
-            if(progression.count > progression.bestScore)
+            if (progression.count > progression.bestScore)
             {
                 progression.bestScore = progression.count;
             }
@@ -101,25 +104,36 @@ namespace GameServerApi.controller
         }
 
         [HttpGet("ResetCost/{userId}")]
-        public async Task<ActionResult<Progression>> ResetCost(int userId)
+        public async Task<ActionResult<int>> ResetCost(int userId)
         {
             var progression = await _context.Progressions.FirstOrDefaultAsync(p => p.userId == userId);
-            if(progression == null)
+            if (progression == null)
             {
-                return BadRequest(new ErrorResponse("User does not have a progression", "NO_PROGRESSION"));
+                return NotFound(new ErrorResponse("User does not have a progression", "NO_PROGRESSION"));
             }
-            return Ok(CalculateResetCost(progression.multiplier));
+            var resetCost = CalculateResetCost(progression.multiplier);
+            return Ok(resetCost);
         }
 
-        [HttpGet("BestScore/")]
-        public async Task<ActionResult<Progression>> BestScore()
+        [HttpGet("BestScore")]
+        public async Task<ActionResult<IEnumerable<object>>> BestScore()
         {
-            var progressions = await _context.Progressions.OrderByDescending(p => p.bestScore).ToListAsync();
-            if(progressions == null || progressions.Count == 0)
+            var progressions = await _context.Progressions
+                .OrderByDescending(p => p.bestScore)
+                .ToListAsync();
+            
+            if (progressions.Count == 0)
             {
                 return NotFound(new ErrorResponse("No progressions found", "NO_PROGRESSIONS"));
             }
-            return Ok(progressions);
+            
+            var result = progressions.Select(p => new
+            {
+                userId = p.userId,
+                bestScore = p.bestScore
+            });
+            
+            return Ok(result);
         }
     }
 }
