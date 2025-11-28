@@ -55,11 +55,28 @@ namespace GameServerApi.controller
             {
                 return BadRequest(new ErrorResponse("User not found", "USER_NOT_FOUND"));
             }
-            var maxQuantity = _context.Items.Where(i => i.id == itemId).Select(i => i.maxQuantity);
-            var quantity = _context.Inventories.Where(i => i.userId == userId).Select(i => i.quantity);
-            if(quantity != maxQuantity)
+            var maxQuantity = await _context.Items.Where(i => i.id == itemId).Select(i => i.maxQuantity).FirstOrDefaultAsync();
+            var quantity = await _context.Inventories.Where(i => i.userId == userId).Select(i => i.quantity).FirstOrDefaultAsync();
+            if(quantity < maxQuantity)
             {
-                return Ok(); // A finir
+                var item = _context.Items.Where(i => i.id == itemId);
+                if(item == null)
+                {
+                    return BadRequest(new ErrorResponse("Item not found", "ITEM_NOT_FOUND"));
+                }
+                else
+                {
+                    var count = await _context.Progressions.Where(u => u.id == userId).Select(p => p.count).FirstOrDefaultAsync();
+                    var cost = await _context.Items.Where(i => i.id == itemId).Select(i => i.price).FirstOrDefaultAsync();
+                    if(count < cost)
+                    {
+                        return BadRequest(new ErrorResponse("Not enough money to buy the item", "NOT_ENOUGH_MONEY"));
+                    }
+                    else
+                    {
+                        return Ok();
+                    }
+                }
             }
             else
             {
