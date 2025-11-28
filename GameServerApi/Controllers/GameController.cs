@@ -93,18 +93,29 @@ namespace GameServerApi.Controllers
             {
                 return NotFound(new ErrorResponse("User does not have a progression", "NO_PROGRESSION"));
             }
+            
             int resetCost = CalculateResetCost(progression.multiplier);
             if (progression.count < resetCost)
             {
                 return BadRequest(new ErrorResponse("Not enough points", "INSUFFICIENT_POINTS"));
             }
+            
             if (progression.count > progression.bestScore)
             {
                 progression.bestScore = progression.count;
             }
+            
+            var userInventory = await _context.Inventories
+                .Where(i => i.userId == userId)
+                .ToListAsync();
+            _context.Inventories.RemoveRange(userInventory);
+            
             progression.count = 0;
             progression.multiplier += 1;
+            progression.totalClickValue = 0;
+            
             await _context.SaveChangesAsync();
+            
             return Ok(progression);
         }
 
