@@ -1,10 +1,8 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GameServerApi.Models;
-using Microsoft.AspNetCore.Identity;
 
-namespace GameServerApi.controller
+namespace GameServerApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
@@ -16,11 +14,36 @@ namespace GameServerApi.controller
             _context = ctx;
         }
 
-        [HttpGet("Inventory/Seed")]
-        public async Task<ActionResult<InventoryEntry>> Seed()
+        [HttpGet("Seed")]
+        public async Task<ActionResult<bool>> Seed()
         {
             try
             {
+                // 1. Vider les tables Inventories et Items
+                var inventories = await _context.Inventories.ToListAsync();
+                _context.Inventories.RemoveRange(inventories);
+                
+                var items = await _context.Items.ToListAsync();
+                _context.Items.RemoveRange(items);
+                
+                await _context.SaveChangesAsync();
+
+                // 2. Récupérer les items depuis l'URL
+                using var httpClient = new HttpClient();
+                var response = await httpClient.GetStringAsync("https://csharp.nouvet.fr/front4/items.json");
+                
+                // 3. Désérialiser le JSON
+                var itemsFromJson = System.Text.Json.JsonSerializer.Deserialize<List<Item>>(response);
+                
+                if (itemsFromJson == null || itemsFromJson.Count == 0)
+                {
+                    return BadRequest(new ErrorResponse("No items found in JSON", "SEED_FAILED"));
+                }
+
+                // 4. Insérer les items en base
+                _context.Items.AddRange(itemsFromJson);
+                await _context.SaveChangesAsync();
+
                 return Ok(true);
             }
             catch
@@ -29,59 +52,79 @@ namespace GameServerApi.controller
             }
         }
 
-        [HttpGet("Inventory/Items")]
-        public async Task<ActionResult<InventoryEntry>> Items()
+        [HttpGet("Items")]
+        public async Task<ActionResult<IEnumerable<Item>>> Items()
         {
-            var items = _context.Inventories.OrderByDescending(i => i.id).ToListAsync();
-            if(items == null)
+            var items = await _context.Items.OrderBy(i => i.id).ToListAsync();
+            if (items.Count == 0)
             {
-                return NotFound(new ErrorResponse("No items found", "NO_FOUND"));
+                return NotFound(new ErrorResponse("No items found", "NO_ITEMS"));
             }
             return Ok(items);
         }
 
-        [HttpGet("Inventory/userInventory/{userId}")]
-        public async Task<ActionResult<InventoryEntry>> UserInventory(int userId)
+        [HttpGet("UserInventory/{userId}")]
+        public async Task<ActionResult<IEnumerable<InventoryEntry>>> UserInventory(int userId)
         {
-            var items = _context.Inventories.Where(i => i.userId == userId).ToListAsync();
+            var items = await _context.Inventories
+                .Where(i => i.userId == userId)
+                .ToListAsync();
             return Ok(items);
         }
 
-        [HttpPost("Inventory/Buy/{userId}/{itemId}")]
-        public async Task<ActionResult<InventoryEntry>> buy(int userId, int itemId)
+        [HttpPost("Buy/{userId}/{itemId}")]
+        public async Task<ActionResult<InventoryEntry>> Buy(int userId, int itemId)
         {
-            var user = _context.Users.Where(u => u.id == userId);
-            if(user == null)
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
             {
-                return BadRequest(new ErrorResponse("User not found", "USER_NOT_FOUND"));
+                return NotFound(new ErrorResponse("User not found", "USER_NOT_FOUND"));
             }
-            var maxQuantity = await _context.Items.Where(i => i.id == itemId).Select(i => i.maxQuantity).FirstOrDefaultAsync();
-            var quantity = await _context.Inventories.Where(i => i.userId == userId).Select(i => i.quantity).FirstOrDefaultAsync();
-            if(quantity < maxQuantity)
+
+            var item = await _context.Items.FindAsync(itemId);
+            if (item == null)
             {
-                var item = _context.Items.Where(i => i.id == itemId);
-                if(item == null)
+                return NotFound(new ErrorResponse("Item not found", "ITEM_NOT_FOUND"));
+            }
+
+            var progression = await _context.Progressions
+                .FirstOrDefaultAsync(p => p.userId == userId);
+            if (progression == null)
+            {
+                return BadRequest(new ErrorResponse("User does not have a progression", "NO_PROGRESSION"));
+            }
+
+            if (progression.count < item.price)
+            {
+                return BadRequest(new ErrorResponse("Not enough money to buy the item", "NOT_ENOUGH_MONEY"));
+            }
+
+            var inventoryEntry = await _context.Inventories
+                .FirstOrDefaultAsync(i => i.userId == userId && i.itemId == itemId);
+
+            if (inventoryEntry != null)
+            {
+                if (inventoryEntry.quantity >= item.maxQuantity)
                 {
-                    return BadRequest(new ErrorResponse("Item not found", "ITEM_NOT_FOUND"));
+                    return BadRequest(new ErrorResponse("Max quantity reached for this item", "MAX_QUANTITY_REACHED"));
                 }
-                else
-                {
-                    var count = await _context.Progressions.Where(u => u.id == userId).Select(p => p.count).FirstOrDefaultAsync();
-                    var cost = await _context.Items.Where(i => i.id == itemId).Select(i => i.price).FirstOrDefaultAsync();
-                    if(count < cost)
-                    {
-                        return BadRequest(new ErrorResponse("Not enough money to buy the item", "NOT_ENOUGH_MONEY"));
-                    }
-                    else
-                    {
-                        return Ok();
-                    }
-                }
+                inventoryEntry.quantity++;
             }
             else
             {
-                return BadRequest(new ErrorResponse("Inventory is full", "INVENTORY_FULL"));
+                inventoryEntry = new InventoryEntry
+                {
+                    userId = userId,
+                    itemId = itemId,
+                    quantity = 1
+                };
+                _context.Inventories.Add(inventoryEntry);
             }
+
+            progression.count -= item.price;
+            await _context.SaveChangesAsync();
+
+            return Ok(inventoryEntry);
         }
     }
 }
