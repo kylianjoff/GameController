@@ -41,8 +41,10 @@ namespace GameServerApi.Controllers
             {
                 return NotFound(new ErrorResponse("User does not have progression", "NO_PROGRESSION"));
             }
-            int effectiveMultiplier = progression.multiplier + progression.totalClickValue;
-            progression.count += progression.multiplier;
+            
+            int effectiveIncrement = progression.multiplier * (1 + progression.totalClickValue);        
+            progression.count += effectiveIncrement;
+            
             if (progression.count > progression.bestScore)
             {
                 progression.bestScore = progression.count;
@@ -52,7 +54,8 @@ namespace GameServerApi.Controllers
             return Ok(new 
             {
                 count = progression.count,
-                multiplier = effectiveMultiplier
+                multiplier = progression.multiplier,
+                totalClickValue = progression.totalClickValue
             });
         }
 
@@ -74,7 +77,8 @@ namespace GameServerApi.Controllers
                 userId = userId,
                 count = 0,
                 multiplier = 1,
-                bestScore = 0
+                bestScore = 0,
+                totalClickValue = 0  // Initialiser totalClickValue à 0
             };
             _context.Progressions.Add(newProgression);
             await _context.SaveChangesAsync();
