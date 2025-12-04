@@ -4,10 +4,10 @@ using GameServerApi.Models;
 using GameServerApi.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace GameServerApi.Controllers
 {
-    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class InventoryController : ControllerBase
@@ -16,6 +16,16 @@ namespace GameServerApi.Controllers
         public InventoryController(UserContext ctx)
         {
             _context = ctx;
+        }
+
+        private int GetUserIdFromToken()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
+            {
+                return -1;
+            }
+            return userId;
         }
 
         [AllowAnonymous]
@@ -70,17 +80,29 @@ namespace GameServerApi.Controllers
         }
 
         [Authorize]
-        [HttpGet("UserInventory/{userId}")]
-        public async Task<ActionResult<IEnumerable<InventoryEntry>>> UserInventory(int userId)
+        [HttpGet("UserInventory")]
+        public async Task<ActionResult<IEnumerable<InventoryEntry>>> UserInventory()
         {
+            int userId = GetUserIdFromToken();
+            if (userId == -1)
+            {
+                return Unauthorized(new ErrorResponse("Invalid token", "INVALID_TOKEN"));
+            }
+
             var items = await _context.Inventories.Where(i => i.userId == userId).ToListAsync();
             return Ok(items);
         }
 
         [Authorize]
-        [HttpPost("Buy/{userId}/{itemId}")]
-        public async Task<ActionResult<IEnumerable<InventoryEntry>>> Buy(int userId, int itemId)
+        [HttpPost("Buy/{itemId}")]
+        public async Task<ActionResult<IEnumerable<InventoryEntry>>> Buy(int itemId)
         {
+            int userId = GetUserIdFromToken();
+            if (userId == -1)
+            {
+                return Unauthorized(new ErrorResponse("Invalid token", "INVALID_TOKEN"));
+            }
+
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
             {
