@@ -1,9 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GameServerApi.Models;
+using GameServerApi.Services;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authorization;
 
 namespace GameServerApi.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class InventoryController : ControllerBase
@@ -14,6 +18,7 @@ namespace GameServerApi.Controllers
             _context = ctx;
         }
 
+        [AllowAnonymous]
         [HttpGet("Seed")]
         public async Task<ActionResult<bool>> Seed()
         {
@@ -52,6 +57,7 @@ namespace GameServerApi.Controllers
             }
         }
 
+        [AllowAnonymous]
         [HttpGet("Items")]
         public async Task<ActionResult<IEnumerable<Item>>> Items()
         {
@@ -63,6 +69,7 @@ namespace GameServerApi.Controllers
             return Ok(items);
         }
 
+        [Authorize]
         [HttpGet("UserInventory/{userId}")]
         public async Task<ActionResult<IEnumerable<InventoryEntry>>> UserInventory(int userId)
         {
@@ -70,6 +77,7 @@ namespace GameServerApi.Controllers
             return Ok(items);
         }
 
+        [Authorize]
         [HttpPost("Buy/{userId}/{itemId}")]
         public async Task<ActionResult<IEnumerable<InventoryEntry>>> Buy(int userId, int itemId)
         {
