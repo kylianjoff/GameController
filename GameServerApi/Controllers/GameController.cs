@@ -4,10 +4,10 @@ using GameServerApi.Models;
 using GameServerApi.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace GameServerApi.Controllers
 {
-    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class GameController : ControllerBase
@@ -26,10 +26,26 @@ namespace GameServerApi.Controllers
             return (int)Math.Floor(cost);
         }
 
-        [Authorize]
-        [HttpGet("Progression/{userId}")]
-        public async Task<ActionResult<Progression>> Progression(int userId)
+        private int GetUserIdFromToken()
         {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
+            {
+                return -1;
+            }
+            return userId;
+        }
+
+        [Authorize]
+        [HttpGet("Progression")]
+        public async Task<ActionResult<Progression>> Progression()
+        {
+            int userId = GetUserIdFromToken();
+            if (userId == -1)
+            {
+                return Unauthorized(new ErrorResponse("Invalid token", "INVALID_TOKEN"));
+            }
+
             var progression = await _context.Progressions.FirstOrDefaultAsync(p => p.userId == userId);
             if (progression == null)
             {
@@ -39,9 +55,15 @@ namespace GameServerApi.Controllers
         }
 
         [Authorize]
-        [HttpGet("Click/{userId}")]
-        public async Task<ActionResult> Click(int userId)
+        [HttpGet("Click")]
+        public async Task<ActionResult> Click()
         {
+            int userId = GetUserIdFromToken();
+            if (userId == -1)
+            {
+                return Unauthorized(new ErrorResponse("Invalid token", "INVALID_TOKEN"));
+            }
+
             var progression = await _context.Progressions.FirstOrDefaultAsync(p => p.userId == userId);
             if (progression == null)
             {
@@ -66,9 +88,15 @@ namespace GameServerApi.Controllers
         }
 
         [Authorize]
-        [HttpGet("Initialize/{userId}")]
-        public async Task<ActionResult<Progression>> InitializeProgression(int userId)
+        [HttpGet("Initialize")]
+        public async Task<ActionResult<Progression>> InitializeProgression()
         {
+            int userId = GetUserIdFromToken();
+            if (userId == -1)
+            {
+                return Unauthorized(new ErrorResponse("Invalid token", "INVALID_TOKEN"));
+            }
+
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
             {
@@ -85,17 +113,23 @@ namespace GameServerApi.Controllers
                 count = 0,
                 multiplier = 1,
                 bestScore = 0,
-                totalClickValue = 0  // Initialiser totalClickValue à 0
+                totalClickValue = 0
             };
             _context.Progressions.Add(newProgression);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(Progression), new { userId = userId }, newProgression);
+            return CreatedAtAction(nameof(Progression), newProgression);
         }
 
         [Authorize]
-        [HttpPost("Reset/{userId}")]
-        public async Task<ActionResult<Progression>> Reset(int userId)
+        [HttpPost("Reset")]
+        public async Task<ActionResult<Progression>> Reset()
         {
+            int userId = GetUserIdFromToken();
+            if (userId == -1)
+            {
+                return Unauthorized(new ErrorResponse("Invalid token", "INVALID_TOKEN"));
+            }
+
             var progression = await _context.Progressions.FirstOrDefaultAsync(p => p.userId == userId);
             if (progression == null)
             {
@@ -128,9 +162,15 @@ namespace GameServerApi.Controllers
         }
 
         [Authorize]
-        [HttpGet("ResetCost/{userId}")]
-        public async Task<ActionResult<int>> ResetCost(int userId)
+        [HttpGet("ResetCost")]
+        public async Task<ActionResult<int>> ResetCost()
         {
+            int userId = GetUserIdFromToken();
+            if (userId == -1)
+            {
+                return Unauthorized(new ErrorResponse("Invalid token", "INVALID_TOKEN"));
+            }
+
             var multiplier = await _context.Progressions.Where(u => u.userId == userId).Select(u => u.multiplier).FirstOrDefaultAsync();
             if(multiplier == 0)
             {
