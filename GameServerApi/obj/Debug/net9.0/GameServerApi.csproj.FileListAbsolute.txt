@@ -377,3 +377,4 @@ C:\Users\kylia\OneDrive\cours\ZZ2\GameController\GameServerApi\obj\Debug\net9.0\
 C:\Users\kylia\OneDrive\cours\ZZ2\GameController\GameServerApi\obj\Debug\net9.0\GameServerApi.pdb
 C:\Users\kylia\OneDrive\cours\ZZ2\GameController\GameServerApi\obj\Debug\net9.0\GameServerApi.genruntimeconfig.cache
 C:\Users\kylia\OneDrive\cours\ZZ2\GameController\GameServerApi\obj\Debug\net9.0\ref\GameServerApi.dll
+C:\Users\kylia\OneDrive\cours\ZZ2\GameController\GameServerApi\bin\Debug\net9.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
