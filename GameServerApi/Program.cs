@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Security.Claims;
+using GameServerApi.Services;
 
 namespace GameServerApi;
 
@@ -21,6 +22,7 @@ public class Program
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
         builder.Services.AddDbContext<UserContext>();
+        builder.Services.AddScoped<JwtService>(); // <-- AJOUTE CETTE LIGNE
         builder.Services.AddCors(options =>
         {
             options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
