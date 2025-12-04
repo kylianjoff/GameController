@@ -1,31 +1,44 @@
 using System.Security.Claims;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-
 using System.Text;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.Tokens;
+using GameServerApi.Models;
 
-var claims = new[]
+namespace GameServerApi.Services
 {
-    new Claim(ClaimTypes.NameIdentifier, "8"),
-    new Claim(ClaimTypes.Name, "Roger"),
-    new Claim(ClaimTypes.Role, "Admin"),
-};
+    public class JwtService
+    {
+        private readonly IConfiguration _configuration;
 
-SymmetricSecurityKey key = new SymmetricSecurityKey(
-    Encoding.UTF8.GetBytes("TheSecretKeyThatShouldBeStoredInTheConfiguration")
-);
-SigningCredentials credentials = new SigningCredentials(
-    key, 
-    SecurityAlgorithms.HmacSha256
-);
+        public JwtService(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
 
+        public string GenerateToken(User user)
+        {
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.id.ToString()),
+                new Claim(ClaimTypes.Name, user.username ?? ""),
+                new Claim(ClaimTypes.Role, user.role.ToString()),
+            };
 
-JwtSecurityToken token = new JwtSecurityToken(
-    issuer: "localhost:5000", // Qui émet le token ici c'est notre API
-    audience: "localhost:5000", // Qui peut utiliser le token ici c'est notre API
-    claims: claims, // Les informations sur l'utilisateur
-    expires: DateTime.Now.AddMinutes(3000), // Date d'expiration du token
-    signingCredentials: credentials // La clé secrète
-);
+            var key = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes("TheSecretKeyThatShouldBeStoredInTheConfiguration")
+            );
+            
+            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-string tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+            var token = new JwtSecurityToken(
+                issuer: "localhost:5000",
+                audience: "localhost:5000",
+                claims: claims,
+                expires: DateTime.Now.AddMinutes(3000),
+                signingCredentials: credentials
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+    }
+}
