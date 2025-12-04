@@ -1,9 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GameServerApi.Models;
+using GameServerApi.Services;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authorization;
 
 namespace GameServerApi.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class GameController : ControllerBase
@@ -22,6 +26,7 @@ namespace GameServerApi.Controllers
             return (int)Math.Floor(cost);
         }
 
+        [Authorize]
         [HttpGet("Progression/{userId}")]
         public async Task<ActionResult<Progression>> Progression(int userId)
         {
@@ -33,6 +38,7 @@ namespace GameServerApi.Controllers
             return Ok(progression);
         }
 
+        [Authorize]
         [HttpGet("Click/{userId}")]
         public async Task<ActionResult> Click(int userId)
         {
@@ -59,6 +65,7 @@ namespace GameServerApi.Controllers
             });
         }
 
+        [Authorize]
         [HttpGet("Initialize/{userId}")]
         public async Task<ActionResult<Progression>> InitializeProgression(int userId)
         {
@@ -85,6 +92,7 @@ namespace GameServerApi.Controllers
             return CreatedAtAction(nameof(Progression), new { userId = userId }, newProgression);
         }
 
+        [Authorize]
         [HttpPost("Reset/{userId}")]
         public async Task<ActionResult<Progression>> Reset(int userId)
         {
@@ -119,6 +127,7 @@ namespace GameServerApi.Controllers
             return Ok(progression);
         }
 
+        [Authorize]
         [HttpGet("ResetCost/{userId}")]
         public async Task<ActionResult<int>> ResetCost(int userId)
         {
@@ -134,6 +143,7 @@ namespace GameServerApi.Controllers
             });
         }
 
+        [Authorize]
         [HttpGet("BestScore")]
         public async Task<ActionResult<IEnumerable<object>>> BestScore()
         {
