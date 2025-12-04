@@ -25,7 +25,7 @@ public class Program
         {
             options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
         });
-
+        builder.Services.AddAuthorization();
         builder.Services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
@@ -53,6 +53,7 @@ public class Program
             app.MapScalarApiReference();
         }
 
+        app.UseAuthentication();
         app.UseAuthorization();
 
 
