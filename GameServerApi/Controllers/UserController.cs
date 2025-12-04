@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GameServerApi.Models;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authorization;
+using GameServerApi.Services;
 
 namespace GameServerApi.Controllers
 {
@@ -10,11 +12,15 @@ namespace GameServerApi.Controllers
     public class UserController : ControllerBase
     {
         private readonly UserContext _context;
-        public UserController(UserContext ctx)
+        private readonly JwtService _jwtService;
+
+        public UserController(UserContext ctx, JwtService jwtService)
         {
             _context = ctx;
+            _jwtService = jwtService;
         }
 
+        [Authorize]
         [HttpGet("All")]
         public async Task<ActionResult<IEnumerable<UserPublic>>> GetAllUsers()
         {
@@ -29,6 +35,7 @@ namespace GameServerApi.Controllers
             return Ok(users);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpGet("AllAdmin")]
         public async Task<ActionResult<IEnumerable<UserPublic>>> GetAllAdmins()
         {
@@ -44,6 +51,7 @@ namespace GameServerApi.Controllers
             return Ok(admins);
         }
 
+        [Authorize]
         [HttpGet("Search/{name}")]
         public async Task<ActionResult<IEnumerable<UserPublic>>> SearchUsers(string name)
         {
@@ -59,6 +67,7 @@ namespace GameServerApi.Controllers
             return Ok(users);
         }
 
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<UserPublic>> GetUser(int id)
         {
@@ -70,8 +79,9 @@ namespace GameServerApi.Controllers
             return Ok(new UserPublic(user.id, user.username, user.role));
         }
 
+        [AllowAnonymous]
         [HttpPost("Register")]
-        public async Task<ActionResult<UserPublic>> Register(UserPass userCreation)
+        public async Task<ActionResult> Register(UserPass userCreation)
         {
             var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.username == userCreation.username);
             if (existingUser != null)
@@ -91,11 +101,13 @@ namespace GameServerApi.Controllers
             _context.Users.Add(newUser);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetUser), new { id = newUser.id }, new UserPublic(newUser.id, newUser.username, newUser.role));
+            var token = _jwtService.GenerateToken(newUser);
+            return Ok(new { token = token, user = new UserPublic(newUser.id, newUser.username, newUser.role) });
         }
 
+        [AllowAnonymous]
         [HttpPost("Login")]
-        public async Task<ActionResult<UserPublic>> Login(UserPass loginData)
+        public async Task<ActionResult> Login(UserPass loginData)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.username == loginData.username);
             if (user == null)
@@ -107,9 +119,11 @@ namespace GameServerApi.Controllers
             if (result == PasswordVerificationResult.Failed)
                 return Unauthorized(new ErrorResponse("Username ou mot de passe incorrect", "AUTH_FAILED"));
 
-            return Ok(new UserPublic(user.id, user.username, user.role));
+            var token = _jwtService.GenerateToken(user);
+            return Ok(new { token = token, user = new UserPublic(user.id, user.username, user.role) });
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id}")]
         public async Task<ActionResult<UserPublic>> PutUser(int id, UserUpdate userUpdate)
         {
@@ -140,6 +154,7 @@ namespace GameServerApi.Controllers
             return Ok(new UserPublic(user.id, user.username, user.role));
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
@@ -153,6 +168,7 @@ namespace GameServerApi.Controllers
             return NoContent();
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpDelete("All")]
         public async Task<IActionResult> DeleteAllUsers()
         {
